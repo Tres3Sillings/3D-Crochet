@@ -62,7 +62,7 @@ function distribute(countA, strA, countB, strB, roundIdx) {
 }
 
 // Core function to slice geometry
-export function sliceGeometry(geometry, stitchWidth, stitchHeight) {
+export function sliceGeometry(geometry, stitchWidth, stitchHeight, minStitches = 6) {
   // Ensure we have non-indexed position attributes or extract from indexed
   let positionAttribute = geometry.attributes.position;
   let indexAttribute = geometry.index;
@@ -146,7 +146,7 @@ export function sliceGeometry(geometry, stitchWidth, stitchHeight) {
   for (let i = 0; i < slices.length; i++) {
     const P = slices[i].perimeter;
     if (P === 0) continue;
-    const S_n = Math.max(4, Math.round(P / stitchWidth)); // minimum 4 stitches
+    const S_n = Math.max(minStitches, Math.round(P / stitchWidth));
     targetStitchesArr.push({ S_n, P, z: slices[i].z });
   }
 
@@ -158,8 +158,8 @@ export function sliceGeometry(geometry, stitchWidth, stitchHeight) {
   const lastSlice = targetStitchesArr[targetStitchesArr.length - 1];
 
   // BOTTOM CAP INJECTION
-  if (firstSlice.S_n > 6) {
-    let current = 6;
+  if (firstSlice.S_n > minStitches) {
+    let current = minStitches;
     finalTargets.push({
       S_n: current,
       P: current * stitchWidth,
@@ -167,7 +167,7 @@ export function sliceGeometry(geometry, stitchWidth, stitchHeight) {
     });
     
     while (current < firstSlice.S_n) {
-      let inc = Math.min(6, firstSlice.S_n - current);
+      let inc = Math.min(minStitches, firstSlice.S_n - current);
       current += inc;
       if (current < firstSlice.S_n) {
         finalTargets.push({
@@ -185,11 +185,11 @@ export function sliceGeometry(geometry, stitchWidth, stitchHeight) {
   }
 
   // TOP CAP INJECTION
-  if (lastSlice.S_n > 6) {
+  if (lastSlice.S_n > minStitches) {
     let current = lastSlice.S_n;
-    while (current > 6) {
+    while (current > minStitches) {
       let maxDec = Math.floor(current / 2);
-      let dec = Math.min(6, maxDec, current - 6);
+      let dec = Math.min(minStitches, maxDec, current - minStitches);
       if (dec <= 0) break; // Sanity check
       current -= dec;
       
