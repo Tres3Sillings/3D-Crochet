@@ -177,16 +177,19 @@ export function generateStitchPath(patternData) {
 
   let stitchIndexInRound = 0;
 
-  const addPoint = (baseY, baseR, theta, nextY, nextR, idx, totalStitches) => {
+  const addPoint = (baseY, baseR, theta, nextY, nextR, idx, totalStitches, stitchType, roundNum) => {
     const progress = idx / totalStitches;
     const interpolatedY = baseY + (nextY - baseY) * progress;
     const interpolatedR = baseR + (nextR - baseR) * progress;
     
-    points.push(new THREE.Vector3(
+    const pt = new THREE.Vector3(
       interpolatedR * Math.cos(theta),
       interpolatedY,
       interpolatedR * Math.sin(theta)
-    ));
+    );
+    pt.stitchType = stitchType;
+    pt.round = roundNum;
+    points.push(pt);
   };
 
   for (let i = 0; i < flatStitches.length; i++) {
@@ -205,15 +208,15 @@ export function generateStitchPath(patternData) {
     }
     
     if (op.type === 'sc' || op.type === 'dec') {
-      addPoint(op.y, currentRadius, angle, nextY, nextRadius, stitchIndexInRound, targetStitches);
+      addPoint(op.y, currentRadius, angle, nextY, nextRadius, stitchIndexInRound, targetStitches, op.type, op.round);
       angle += angleStep;
       stitchIndexInRound++;
     } else if (op.type === 'inc') {
-      addPoint(op.y, currentRadius, angle, nextY, nextRadius, stitchIndexInRound, targetStitches);
+      addPoint(op.y, currentRadius, angle, nextY, nextRadius, stitchIndexInRound, targetStitches, 'inc', op.round);
       angle += angleStep;
       stitchIndexInRound++;
       
-      addPoint(op.y, currentRadius, angle, nextY, nextRadius, stitchIndexInRound, targetStitches);
+      addPoint(op.y, currentRadius, angle, nextY, nextRadius, stitchIndexInRound, targetStitches, 'inc', op.round);
       angle += angleStep;
       stitchIndexInRound++;
     }

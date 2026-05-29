@@ -6,7 +6,16 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import PatternVisualizer from './PatternVisualizer';
 
-export default function Viewport({ parts = [], activePartId = null, onGeometryLoaded, wireframe = false }) {
+export default function Viewport({ 
+  parts = [], 
+  activePartId = null, 
+  onGeometryLoaded, 
+  showMesh = true,
+  showStitchMarkers = true,
+  colorCodeStitches = true,
+  markerSize = 6,
+  wireframe = false 
+}) {
   
   useEffect(() => {
     parts.forEach(part => {
@@ -82,33 +91,38 @@ export default function Viewport({ parts = [], activePartId = null, onGeometryLo
                 key={part.id}
                 position={[part.position?.x || 0, part.position?.y || 0, part.position?.z || 0]}
               >
-                <mesh geometry={renderingGeom} castShadow receiveShadow>
-                  {isActive ? (
-                    <meshPhysicalMaterial 
-                      color="#4f46e5" 
-                      roughness={0.2} 
-                      metalness={0.1} 
-                      clearcoat={0.3}
-                      clearcoatRoughness={0.4}
-                      transparent={true}
-                      opacity={0.85}
-                      wireframe={wireframe} 
-                    />
-                  ) : (
-                    <meshPhysicalMaterial 
-                      color="#6366f1" 
-                      roughness={0.5} 
-                      metalness={0.1} 
-                      transparent={true}
-                      opacity={0.6}
-                      wireframe={wireframe}
-                    />
-                  )}
-                </mesh>
+                {showMesh && (
+                  <mesh geometry={renderingGeom} castShadow receiveShadow>
+                    {isActive ? (
+                      <meshPhysicalMaterial 
+                        color="#4f46e5" 
+                        roughness={0.2} 
+                        metalness={0.1} 
+                        clearcoat={0.3}
+                        clearcoatRoughness={0.4}
+                        transparent={true}
+                        opacity={0.85}
+                        wireframe={wireframe}
+                      />
+                    ) : (
+                      <meshPhysicalMaterial 
+                        color="#6366f1" 
+                        roughness={0.5} 
+                        metalness={0.1} 
+                        transparent={true}
+                        opacity={0.6}
+                        wireframe={wireframe}
+                      />
+                    )}
+                  </mesh>
+                )}
                 {renderingPoints && renderingPoints.length > 0 && (
                   <PatternVisualizer 
                     points={renderingPoints} 
                     currentStitch={renderingCurrentStitch} 
+                    showStitchMarkers={showStitchMarkers}
+                    colorCodeStitches={colorCodeStitches}
+                    markerSize={markerSize}
                   />
                 )}
               </group>

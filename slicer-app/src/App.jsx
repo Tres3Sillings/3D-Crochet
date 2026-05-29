@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
-import { UploadCloud, Scissors, Download, Copy, Settings2, Box, Info, Loader2, AlertCircle, Code, ScanFace, Wand2, RefreshCw, Plus, Trash2, Layers } from 'lucide-react';
+import { UploadCloud, Scissors, Download, Copy, Settings2, Box, Info, Loader2, AlertCircle, Code, ScanFace, Wand2, RefreshCw, Plus, Trash2, Layers, Eye, EyeOff, X } from 'lucide-react';
 import Viewport from './components/Viewport';
 import { sliceGeometry } from './lib/slicer';
 import { generateStitchPath, sanitizeHumanPattern } from './lib/parser';
@@ -71,7 +71,10 @@ const mapStitchesToAssembly = (points, rx, ry, rz, centroid) => {
   const center = centroid || new THREE.Vector3(0, 0, 0);
 
   return points.map(pt => {
-    return pt.clone().applyQuaternion(qInv).add(center);
+    const mapped = pt.clone().applyQuaternion(qInv).add(center);
+    mapped.stitchType = pt.stitchType;
+    mapped.round = pt.round;
+    return mapped;
   });
 };
 
@@ -99,8 +102,15 @@ function App() {
   // Common State
   const [gauge, setGauge] = useState({ width: 5.0, height: 4.0 });
   const [selectedPreset, setSelectedPreset] = useState('4');
-  const [wireframe, setWireframe] = useState(false);
+  const [showMesh, setShowMesh] = useState(true);
   const [minStitches, setMinStitches] = useState(6);
+
+  // Visualizer Settings Menu State
+  const [showSettings, setShowSettings] = useState(false);
+  const [showStitchMarkers, setShowStitchMarkers] = useState(true);
+  const [colorCodeStitches, setColorCodeStitches] = useState(true);
+  const [markerSize, setMarkerSize] = useState(6);
+  const [showWireframe, setShowWireframe] = useState(false);
 
   // Gauge & Preset Handlers
   const handleWidthChange = (valStr) => {
@@ -1332,7 +1342,11 @@ function App() {
             parts={parts}
             activePartId={activePartId}
             onGeometryLoaded={handleGeometryLoaded} 
-            wireframe={wireframe} 
+            showMesh={showMesh} 
+            showStitchMarkers={showStitchMarkers}
+            colorCodeStitches={colorCodeStitches}
+            markerSize={markerSize}
+            wireframe={showWireframe}
           />
         </div>
 
@@ -1363,21 +1377,123 @@ function App() {
         )}
         
         {/* Overlay Controls */}
-        <div className="absolute top-6 right-6 flex gap-4">
-           {appMode === 'slicer' && (
-             <button 
-               onClick={() => setWireframe(!wireframe)}
-               className={`px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-md border transition-colors ${wireframe ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-slate-200'}`}
-             >
-               Wireframe
-             </button>
-           )}
-           {appMode === 'validator' && (
-             <div className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800/80 border border-slate-700/50 text-slate-300 backdrop-blur-md flex items-center gap-2">
-               <RefreshCw className="w-4 h-4 text-pink-400 animate-spin-slow" />
-               Live Math Simulation
-             </div>
-           )}
+        <div className="absolute top-6 right-6 flex flex-col items-end gap-3 z-30">
+          <div className="flex gap-3">
+             {appMode === 'slicer' && (
+               <>
+                 <button 
+                   onClick={() => setShowMesh(!showMesh)}
+                   className={`px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-md border transition-all flex items-center gap-2 ${
+                     !showMesh 
+                       ? 'bg-pink-500/20 border-pink-500/50 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.2)]' 
+                       : 'bg-slate-800/80 border-slate-700/50 text-slate-300 hover:bg-slate-750 hover:text-slate-100'
+                   }`}
+                 >
+                   {!showMesh ? (
+                     <>
+                       <EyeOff className="w-4 h-4 text-pink-400" />
+                       <span>Stitch Only</span>
+                     </>
+                   ) : (
+                     <>
+                       <Eye className="w-4 h-4 text-indigo-400" />
+                       <span>Mesh + Stitch</span>
+                     </>
+                   )}
+                 </button>
+                 <button
+                   onClick={() => setShowSettings(!showSettings)}
+                   className={`p-2 rounded-lg backdrop-blur-md border transition-all flex items-center justify-center ${
+                     showSettings 
+                       ? 'bg-indigo-600/30 border-indigo-500/60 text-indigo-305 shadow-[0_0_15px_rgba(99,102,241,0.25)]' 
+                       : 'bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200'
+                   }`}
+                   title="Visualizer Settings"
+                 >
+                   <Settings2 className="w-5 h-5" />
+                 </button>
+               </>
+             )}
+             {appMode === 'validator' && (
+               <div className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800/80 border border-slate-700/50 text-slate-300 backdrop-blur-md flex items-center gap-2">
+                 <RefreshCw className="w-4 h-4 text-pink-400 animate-spin-slow" />
+                 Live Math Simulation
+               </div>
+             )}
+          </div>
+
+          {/* Floating Settings Card */}
+          {showSettings && appMode === 'slicer' && (
+            <div className="w-72 bg-slate-800/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-4 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-700/60 mb-3.5">
+                <span className="text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Settings2 className="w-3.5 h-3.5 text-indigo-400" />
+                  Visualizer Settings
+                </span>
+                <button 
+                  onClick={() => setShowSettings(false)}
+                  className="text-slate-400 hover:text-slate-200 transition-colors p-0.5 rounded-md hover:bg-slate-700/50"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                {/* Show Stitch Markers Toggle */}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300 font-medium">Show Stitch Markers</span>
+                  <button 
+                    onClick={() => setShowStitchMarkers(!showStitchMarkers)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${showStitchMarkers ? 'bg-indigo-650' : 'bg-slate-700'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${showStitchMarkers ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Color-Code Stitches Toggle */}
+                {showStitchMarkers && (
+                  <div className="flex items-center justify-between animate-in fade-in duration-200">
+                    <span className="text-slate-300 font-medium">Color-Code Stitch Types</span>
+                    <button 
+                      onClick={() => setColorCodeStitches(!colorCodeStitches)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${colorCodeStitches ? 'bg-indigo-650' : 'bg-slate-700'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${colorCodeStitches ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Marker Size Slider */}
+                {showStitchMarkers && (
+                  <div className="space-y-1.5 animate-in fade-in duration-200">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Marker Size</span>
+                      <span className="font-mono text-indigo-300">{markerSize}px</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="2" 
+                      max="14" 
+                      value={markerSize}
+                      onChange={(e) => setMarkerSize(parseInt(e.target.value))}
+                      className="w-full h-1 bg-slate-700 rounded accent-indigo-500 cursor-pointer"
+                    />
+                  </div>
+                )}
+
+                {/* Show Model Wireframe Toggle */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-700/40">
+                  <span className="text-slate-300 font-medium">Model Wireframe</span>
+                  <button 
+                    onClick={() => setShowWireframe(!showWireframe)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${showWireframe ? 'bg-indigo-650' : 'bg-slate-700'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${showWireframe ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Loading Overlay */}
@@ -1418,6 +1534,23 @@ function App() {
                 onChange={(e) => setCurrentStitch(parseInt(e.target.value))}
                 className={`w-full h-2.5 bg-slate-900 rounded-lg appearance-none cursor-pointer hover:accent-pink-400 transition-colors shadow-inner ${appMode === 'slicer' ? 'accent-indigo-500' : 'accent-pink-500'}`}
               />
+
+              {/* Stitch Type Legend */}
+              <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 text-xs justify-center border-t border-slate-700/50 pt-3.5">
+                <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Stitch Path Legend:</span>
+                <span className="flex items-center gap-2 text-slate-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-pink-500 shadow-[0_0_6px_rgba(236,72,153,0.6)]" />
+                  <span>Single Crochet (sc)</span>
+                </span>
+                <span className="flex items-center gap-2 text-slate-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                  <span>Increase (inc)</span>
+                </span>
+                <span className="flex items-center gap-2 text-slate-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
+                  <span>Decrease (dec)</span>
+                </span>
+              </div>
             </div>
           </div>
         )}
